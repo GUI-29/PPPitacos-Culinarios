@@ -1,0 +1,38 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+// Quem usa a API (cozinheiro / leitor de receitas)
+model User {
+  id       Int      @id @default(autoincrement())
+  nome     String
+  email    String   @unique
+  password String // sempre guardada como hash bcrypt
+  role     Role     @default(USER)
+  criadoEm DateTime @default(now())
+
+  receitas Receita[] // relação 1:N -> um usuário tem várias receitas
+}
+
+// Recurso principal do tema: pertence a um usuário (o autor = dono)
+model Receita {
+  id           Int      @id @default(autoincrement())
+  titulo       String
+  ingredientes String
+  modoPreparo  String
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  autorId Int
+  autor   User @relation(fields: [autorId], references: [id], onDelete: Cascade)
+}

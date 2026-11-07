@@ -1,0 +1,184 @@
+### ============================================================
+### PPPitacos Culinários — testes T1 a T10 (+ extras)
+### Extensão do VS Code: "REST Client" (humao.rest-client)
+### Antes de testar: npx prisma migrate reset  (ou migrate dev + db seed)
+### e npm run dev. Senha de todos os usuários do seed: Senha123
+### Clique em "Send Request" acima de cada bloco, de cima para baixo.
+### ============================================================
+
+@baseUrl = http://localhost:3000
+
+### ---------- Logins (guardam o token em variáveis) ----------
+
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "email": "admin@pppitacos.com", "senha": "Senha123" }
+
+###
+@tokenAdmin = {{loginAdmin.response.body.token}}
+
+# @name loginDavi
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "email": "davi@pppitacos.com", "senha": "Senha123" }
+
+###
+@tokenDavi = {{loginDavi.response.body.token}}
+
+# @name loginGuilherme
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "email": "guilherme@pppitacos.com", "senha": "Senha123" }
+
+###
+@tokenGuilherme = {{loginGuilherme.response.body.token}}
+
+
+### ---------- T1 — Cadastro válido (resposta sem senha) → 201 ----------
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "nome": "Cozinheiro Novo",
+  "email": "novo{{$timestamp}}@pppitacos.com",
+  "senha": "segredo123"
+}
+
+### ---------- T2 — Cadastro com e-mail repetido → 409 ----------
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{ "nome": "Davi Repetido", "email": "davi@pppitacos.com", "senha": "segredo123" }
+
+### ---------- (extra) Cadastro inválido: senha curta → 400 ----------
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{ "nome": "Sem Senha Boa", "email": "curta@pppitacos.com", "senha": "123" }
+
+### ---------- (extra) Tentar se cadastrar como ADMIN: o role é ignorado, nasce USER → 201 ----------
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "nome": "Espertinho",
+  "email": "esperto{{$timestamp}}@pppitacos.com",
+  "senha": "segredo123",
+  "role": "ADMIN"
+}
+
+### ---------- T3 — Login com senha errada → 401 ----------
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "email": "davi@pppitacos.com", "senha": "senhaerrada" }
+
+### ---------- T4 — Rota protegida sem token → 401 ----------
+GET {{baseUrl}}/auth/me
+
+### ---------- (extra) Formato errado do header → 401 ----------
+GET {{baseUrl}}/auth/me
+Authorization: {{tokenDavi}}
+
+### ---------- (extra) Token inválido/adulterado → 401 ----------
+GET {{baseUrl}}/auth/me
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiQURNSU4iLCJzdWIiOiIyIn0.assinaturafalsa
+
+### ---------- T5 — Rota protegida com token válido → 200 ----------
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{tokenDavi}}
+
+### ---------- T6 — Criar receita mandando o dono no body (autorId deve ser IGNORADO) → 201 ----------
+# Conferir na resposta: autor = Davi, mesmo com "autorId": 1 no body.
+POST {{baseUrl}}/receitas
+Authorization: Bearer {{tokenDavi}}
+Content-Type: application/json
+
+{
+  "titulo": "Cuscuz paulista",
+  "ingredientes": "farinha de milho, sardinha, tomate, ovo cozido, ervilha",
+  "modoPreparo": "Hidrate a farinha, refogue o recheio, monte em camadas e leve ao vapor.",
+  "autorId": 1
+}
+
+### ---------- T7 — USER alterando receita de outro USER → 403 ----------
+# Receita 3 é do Guilherme; quem tenta é o Davi.
+PUT {{baseUrl}}/receitas/3
+Authorization: Bearer {{tokenDavi}}
+Content-Type: application/json
+
+{ "titulo": "Strogonoff hackeado" }
+
+### ---------- (extra) O dono altera a própria receita → 200 ----------
+PUT {{baseUrl}}/receitas/3
+Authorization: Bearer {{tokenGuilherme}}
+Content-Type: application/json
+
+{ "titulo": "Strogonoff de frango cremoso" }
+
+### ---------- (extra) ADMIN altera receita de qualquer um → 200 ----------
+PUT {{baseUrl}}/receitas/1
+Authorization: Bearer {{tokenAdmin}}
+Content-Type: application/json
+
+{ "titulo": "Brigadeiro de panela (revisado pelo admin)" }
+
+### ---------- T8 — USER em rota de ADMIN → 403 ----------
+GET {{baseUrl}}/users
+Authorization: Bearer {{tokenDavi}}
+
+### ---------- T9 — ADMIN em rota de ADMIN → 200 ----------
+GET {{baseUrl}}/users
+Authorization: Bearer {{tokenAdmin}}
+
+### ---------- T10 — Recurso inexistente → 404 ----------
+PUT {{baseUrl}}/receitas/9999
+Authorization: Bearer {{tokenDavi}}
+Content-Type: application/json
+
+{ "titulo": "Não existe" }
+
+### ---------- (extra) Listagem pública de receitas → 200 ----------
+GET {{baseUrl}}/receitas
+
+### ---------- (extra) Minhas receitas (logado) → 200 ----------
+GET {{baseUrl}}/receitas/minhas
+Authorization: Bearer {{tokenDavi}}
+
+### ---------- (extra) ADMIN muda o perfil de um usuário → 200 ----------
+PATCH {{baseUrl}}/users/3/role
+Authorization: Bearer {{tokenAdmin}}
+Content-Type: application/json
+
+{ "role": "USER" }
+
+### ---------- (extra) Perfil inválido → 400 ----------
+PATCH {{baseUrl}}/users/3/role
+Authorization: Bearer {{tokenAdmin}}
+Content-Type: application/json
+
+{ "role": "SUPERUSUARIO" }
+
+### ---------- (extra) Troca de senha conferindo a atual → 200 ----------
+# Cuidado: depois disto, a senha do Davi deixa de ser Senha123 (rode o seed para voltar).
+PATCH {{baseUrl}}/auth/senha
+Authorization: Bearer {{tokenDavi}}
+Content-Type: application/json
+
+{ "senhaAtual": "Senha123", "novaSenha": "NovaSenha456" }
+
+### ---------- (extra) Limite de tentativas: envie esta requisição 11 vezes → na 11ª vem 429 ----------
+# Reinicie o servidor para zerar o contador.
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "email": "davi@pppitacos.com", "senha": "errada" }
+
+### ---------- (extra) Apagar a própria receita → 204 ----------
+# Troque o 6 pelo id da receita criada no T6, se for diferente.
+DELETE {{baseUrl}}/receitas/6
+Authorization: Bearer {{tokenDavi}}
