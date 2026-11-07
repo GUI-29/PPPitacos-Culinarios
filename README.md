@@ -175,4 +175,4 @@ Extras no arquivo: cadastro com senha curta (400), tentativa de se cadastrar com
 
 - Documentação oficial: Express, Prisma 7 (quickstart SQLite, `omit`, driver adapters), RFC 7519, jwt.io, OWASP Cheat Sheets, MDN (lista completa em `PESQUISA.md`).
 - Bibliotecas: `express`, `@prisma/client`, `@prisma/adapter-better-sqlite3`, `better-sqlite3`, `jsonwebtoken`, `bcryptjs`, `dotenv`, `express-rate-limit`, `tsx`, `prisma`.
-- Ferramenta de IA: **Claude (Anthropic)** foi usada para gerar o código-base, o modelo de documentos e o rascunho da pesquisa; o grupo revisou, executou e estudou o código para a apresentação.
+
